@@ -1,0 +1,42 @@
+## --- Core .NET Build Artifacts ---
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+Makefile.deps
+
+## --- ASP.NET Core Specifics ---
+# Local user secrets file containing sensitive development settings
+appsettings.Development.json
+secrets.json
+.microsoft.visualstudio.secrets.json
+
+# Client-side dependency folders managed by package managers (npm / libman)
+node_modules/
+wwwroot/lib/
+
+# Published output folder
+publish/
+
+## --- Visual Studio & IDE Tooling ---
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.vshost.exe
+*.vshost.exe.manifest
+
+## --- VS Code ---
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+## --- JetBrains Rider ---
+.idea/
+*.sln.iml
+
+## --- Testing & Diagnostics ---
+TestResults/
+*.log
+*.clog
