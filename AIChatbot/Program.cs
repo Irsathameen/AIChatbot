@@ -5,6 +5,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Configure CORS for local Angular dev server
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalAngularDev", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 //Add OllamaService
 builder.Services.AddHttpClient<OllamaService>();
 
@@ -19,6 +30,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable CORS for the configured policy
+app.UseCors("LocalAngularDev");
 
 app.UseAuthorization();
 

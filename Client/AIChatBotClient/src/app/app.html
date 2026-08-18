@@ -1,0 +1,26 @@
+<div class="container">
+
+  <!-- Answer -->
+  <div class="row" style="margin-top: 20px;">
+    <div class="col-6">
+      <textarea id="answer" class="form-control" rows="10" [(ngModel)]="answer"></textarea>
+    </div>
+  </div>
+
+  <!-- Questions -->
+  <div class="row" style="margin-top: 20px;">
+    <div class="col-6">
+      <textarea id="question" class="form-control" rows="10" [(ngModel)]="question"
+        placeholder="Enter your question here..."></textarea>
+    </div>
+  </div>
+
+
+
+  <div class="row" style="margin-top: 20px;">
+    <div class="col-3">
+      <input type="button" class="btn btn-primary" value="Ask" (click)="askQuestion()">
+    </div>
+  </div>
+  
+</div>
