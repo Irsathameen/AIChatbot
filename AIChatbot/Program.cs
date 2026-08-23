@@ -1,5 +1,6 @@
+using AIChatbot.Services;
 using AIChatbot.Utility;
-using Microsoft.Extensions.AI;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
@@ -19,6 +20,17 @@ builder.Services.AddCors(options =>
 //Add OllamaService
 builder.Services.AddHttpClient<OllamaService>();
 
+// Register Postgres DbContext for RAG storage (pgvector must be enabled in DB)
+builder.Services.AddDbContext<ChatbotDbContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    // Pgvector EF mappings are configured in the DbContext
+});
+
+// Register embedding and RAG services
+builder.Services.AddSingleton<IEmbeddingService, SimpleEmbeddingService>();
+builder.Services.AddScoped<RagService>();
+// 1. Register the native .NET 10 OpenAPI document generator
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -26,7 +38,17 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Show detailed developer exceptions in development
+    app.UseDeveloperExceptionPage();
+
+    // Generates the native /openapi/v1.json endpoint
     app.MapOpenApi();
+
+    // Attach Swagger UI and point it to the .NET 10 OpenAPI JSON endpoint
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "API v1");
+    });
 }
 
 app.UseHttpsRedirection();
