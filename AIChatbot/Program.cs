@@ -23,13 +23,14 @@ builder.Services.AddHttpClient<OllamaService>();
 // Register Postgres DbContext for RAG storage (pgvector must be enabled in DB)
 builder.Services.AddDbContext<ChatbotDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    // Pgvector EF mappings are configured in the DbContext
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+                      o => o.UseVector());
 });
 
 // Register embedding and RAG services
 builder.Services.AddSingleton<IEmbeddingService, SimpleEmbeddingService>();
 builder.Services.AddScoped<RagService>();
+builder.Services.AddScoped<PdfIngestor>();
 // 1. Register the native .NET 10 OpenAPI document generator
 builder.Services.AddOpenApi();
 

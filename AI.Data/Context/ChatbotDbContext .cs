@@ -6,7 +6,7 @@ public class ChatbotDbContext : DbContext
 {
     public ChatbotDbContext(DbContextOptions<ChatbotDbContext> options) : base(options) { }
 
-    public DbSet<DocumentChunk> DocumentChunks { get; set; }
+    public DbSet<DocumentChunk> documentchunks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,7 +16,7 @@ public class ChatbotDbContext : DbContext
         modelBuilder.Entity<DocumentChunk>(entity =>
         {
             // Explicitly map your embedding property as a specific vector size (e.g., 1536 for OpenAI)
-            entity.Property(e => e.Embedding).HasColumnType("vector(1536)");
+            entity.Property(e => e.embedding).HasColumnType("vector(1536)");
         });
     }
 }

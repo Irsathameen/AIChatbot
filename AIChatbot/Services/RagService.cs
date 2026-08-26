@@ -27,23 +27,34 @@ namespace AIChatbot.Services
             var queryVec = await _embedding.GetEmbeddingAsync(userPrompt);
             var targetVector = new Vector(queryVec);
 
-            var chunks = await _db.DocumentChunks
-                .OrderBy(c => c.Embedding.CosineDistance(targetVector))
-                .Take(topK)
-                .ToListAsync();
+            var chunks = await _db.documentchunks
+            .OrderBy(c => c.embedding.CosineDistance(targetVector))
+            .Take(topK)
+            .Select(c => new
+            {    
+            Chunk = c,
+            Distance = c.embedding.CosineDistance(targetVector)
+            })
+            .ToListAsync();
 
             var sources = new List<RagSource>();
             var contextBuilder = new StringBuilder();
-            foreach (var c in chunks)
+            foreach (var item in chunks)
             {
-                // Use CosineDistance available via Pgvector.EntityFrameworkCore
-                var dist = c.Embedding.CosineDistance(targetVector);
-                var score = 1.0f - (float)dist; // approximate similarity for display
-                var snippet = c.Content?.Length > 400 ? c.Content.Substring(0, 400) : c.Content;
-                sources.Add(new RagSource { Id = c.Id.ToString(), Score = score, Snippet = snippet });
-                contextBuilder.AppendLine($"Source: {c.Id}\n{snippet}\n---\n");
-            }
+                var score = 1.0f - (float)item.Distance;
+                var snippet = item.Chunk.content?.Length > 400
+                    ? item.Chunk.content.Substring(0, 400)
+                    : item.Chunk.content;
 
+                sources.Add(new RagSource
+                {
+                    Id = item.Chunk.id.ToString(),
+                    Score = score,
+                    Snippet = snippet
+                });
+
+                contextBuilder.AppendLine($"Source: {item.Chunk.id}\n{snippet}\n---\n");
+            }
             var promptWithContext = $"Use the following retrieved documents as context when answering.\n\n{contextBuilder}\nUser: {userPrompt}";
 
             var llmRaw = await _ollama.ChatAsync(promptWithContext);

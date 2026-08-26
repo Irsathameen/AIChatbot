@@ -24,6 +24,29 @@ namespace AIChatbot.Controllers
             _ollamaService = ollamaService;
         }
 
+        [HttpPost("ingestPdf")]
+        public async Task<IActionResult> IngestPdf([FromServices] PdfIngestor ingest, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "file is required" });
+
+            var temp = Path.GetTempFileName();
+            try
+            {
+                using (var fs = System.IO.File.Create(temp))
+                {
+                    await file.CopyToAsync(fs);
+                }
+
+                var count = await ingest.IngestPdfAsync(temp);
+                return Ok(new { insertedChunks = count });
+            }
+            finally
+            {
+                try { System.IO.File.Delete(temp); } catch { }
+            }
+        }
+
         [HttpPost("ask")]
         public async Task<IActionResult> Ask([FromBody] ChatRequest chatRequest)
         {
@@ -62,8 +85,8 @@ namespace AIChatbot.Controllers
             var targetVector = new Vector(queryEmbedding);
 
             // Order items relative to the shortest cosine distance to find the closest context
-            return await context.DocumentChunks
-                .OrderBy(c => c.Embedding.CosineDistance(targetVector))
+            return await context.documentchunks
+                .OrderBy(c => c.embedding.CosineDistance(targetVector))
                 .Take(limit)
                 .ToListAsync();
         }
