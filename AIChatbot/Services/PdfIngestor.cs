@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Pgvector;
+using System;
 
 namespace AIChatbot.Services
 {
@@ -63,15 +63,14 @@ namespace AIChatbot.Services
                             if (vecFloats == null || vecFloats.Length == 0)
                                 continue;
 
-                            var pgVector = new Vector(vecFloats);
                             var docChunk = new DocumentChunk
                             {
-                                id= Guid.NewGuid(),
+                                id = Guid.NewGuid(),
                                 content = content,
-                                embedding = pgVector
+                                embedding = vecFloats
                             };
 
-                            _db.documentchunks.Add(docChunk);
+                            _db.documentchunk.Add(docChunk);
                             saved++;
                         }
 

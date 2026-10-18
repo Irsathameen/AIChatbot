@@ -1,5 +1,4 @@
-﻿using Pgvector;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AI.Data.Model
 {
@@ -7,9 +6,9 @@ namespace AI.Data.Model
     {
         public Guid id { get; set; }
         public string content { get; set; }
-        // Map the embedding property to the database vector column so EF Core
-        // and Pgvector can translate vector operations (CosineDistance) to SQL.
-        public Vector embedding { get; set; }
+        // Store embedding as a float array; for SQL Server we persist this
+        // as varbinary (converted in the DbContext).
+        public float[] embedding { get; set; }
     }
 
 }

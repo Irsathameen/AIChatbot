@@ -20,11 +20,10 @@ builder.Services.AddCors(options =>
 //Add OllamaService
 builder.Services.AddHttpClient<OllamaService>();
 
-// Register Postgres DbContext for RAG storage (pgvector must be enabled in DB)
+// Register SQL Server DbContext for RAG storage
 builder.Services.AddDbContext<ChatbotDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
-                      o => o.UseVector());
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
 // Register embedding and RAG services

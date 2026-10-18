@@ -3,8 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using AIChatbot.Utility;
 using Microsoft.EntityFrameworkCore;
-using Pgvector;
-using Pgvector.EntityFrameworkCore;
+using System;
 using AIChatbot.DTO;
 
 namespace AIChatbot.Services
@@ -25,17 +24,33 @@ namespace AIChatbot.Services
         public async Task<RagResponse> QueryAsync(string userPrompt, int topK = 3)
         {
             var queryVec = await _embedding.GetEmbeddingAsync(userPrompt);
-            var targetVector = new Vector(queryVec);
 
-            var chunks = await _db.documentchunks
-            .OrderBy(c => c.embedding.CosineDistance(targetVector))
-            .Take(topK)
-            .Select(c => new
-            {    
-            Chunk = c,
-            Distance = c.embedding.CosineDistance(targetVector)
-            })
-            .ToListAsync();
+            // Load candidate chunks and compute cosine similarity in-memory.
+            var allChunks = await _db.documentchunk
+                .Select(c => new { Chunk = c, c.embedding })
+                .ToListAsync();
+
+            float CosineSimilarity(float[] a, float[] b)
+            {
+                if (a == null || b == null) return 0f;
+                var len = Math.Min(a.Length, b.Length);
+                double dot = 0, na = 0, nb = 0;
+                for (int i = 0; i < len; i++)
+                {
+                    dot += a[i] * b[i];
+                    na += a[i] * a[i];
+                    nb += b[i] * b[i];
+                }
+                if (na == 0 || nb == 0) return 0f;
+                return (float)(dot / (Math.Sqrt(na) * Math.Sqrt(nb)));
+            }
+
+            var chunks = allChunks
+                .Select(x => new { Chunk = x.Chunk, Score = CosineSimilarity(queryVec, x.embedding) })
+                .OrderByDescending(x => x.Score)
+                .Take(topK)
+                .Select(x => new { Chunk = x.Chunk, Distance = 1.0f - x.Score })
+                .ToList();
 
             var sources = new List<RagSource>();
             var contextBuilder = new StringBuilder();

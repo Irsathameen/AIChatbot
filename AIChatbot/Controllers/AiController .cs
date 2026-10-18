@@ -2,8 +2,7 @@
 using AIChatbot.Utility;
 using AIData.DTO;
 using Microsoft.AspNetCore.Mvc;
-using Pgvector;
-using Pgvector.EntityFrameworkCore;
+using System;
 using Microsoft.EntityFrameworkCore;
 using AIChatbot.Services;
 using AIChatbot.DTO;
@@ -40,6 +39,10 @@ namespace AIChatbot.Controllers
 
                 var count = await ingest.IngestPdfAsync(temp);
                 return Ok(new { insertedChunks = count });
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(500, new { error = ex.InnerException.ToString() });
             }
             finally
             {
@@ -82,13 +85,31 @@ namespace AIChatbot.Controllers
 
         public async Task<List<DocumentChunk>> RetrieveRelevantChunksAsync(ChatbotDbContext context, float[] queryEmbedding, int limit = 3)
         {
-            var targetVector = new Vector(queryEmbedding);
-
-            // Order items relative to the shortest cosine distance to find the closest context
-            return await context.documentchunks
-                .OrderBy(c => c.embedding.CosineDistance(targetVector))
-                .Take(limit)
+            // Compute cosine similarity in-memory for SQL Server stored embeddings
+            var all = await context.documentchunk
+                .Select(c => new { c.id, c.content, c.embedding })
                 .ToListAsync();
+
+            float CosineSimilarity(float[] a, float[] b)
+            {
+                if (a == null || b == null) return 0f;
+                var len = Math.Min(a.Length, b.Length);
+                double dot = 0, na = 0, nb = 0;
+                for (int i = 0; i < len; i++)
+                {
+                    dot += a[i] * b[i];
+                    na += a[i] * a[i];
+                    nb += b[i] * b[i];
+                }
+                if (na == 0 || nb == 0) return 0f;
+                return (float)(dot / (Math.Sqrt(na) * Math.Sqrt(nb)));
+            }
+
+            return all
+                .Select(x => new DocumentChunk { id = x.id, content = x.content, embedding = x.embedding })
+                .OrderByDescending(c => CosineSimilarity(queryEmbedding, c.embedding))
+                .Take(limit)
+                .ToList();
         }
 
     }
