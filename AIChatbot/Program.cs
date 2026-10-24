@@ -1,12 +1,10 @@
-using AIChatbot.Services;
+
 using AIChatbot.Utility;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-// Add services to the container.
+
 builder.Services.AddControllers();
 
-// Configure CORS for local Angular dev server
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("LocalAngularDev", policy =>
@@ -17,20 +15,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-//Add OllamaService
 builder.Services.AddHttpClient<OllamaService>();
-
-// Register SQL Server DbContext for RAG storage
-builder.Services.AddDbContext<ChatbotDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
-
-// Register embedding and RAG services
-builder.Services.AddSingleton<IEmbeddingService, SimpleEmbeddingService>();
+builder.Services.AddHttpClient<OllamaEmbeddingService>();
+builder.Services.AddScoped<DocumentChunkRepository>();
 builder.Services.AddScoped<RagService>();
-builder.Services.AddScoped<PdfIngestor>();
-// 1. Register the native .NET 10 OpenAPI document generator
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

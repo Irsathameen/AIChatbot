@@ -1,117 +1,101 @@
-﻿using AI.Data.Model;
+﻿
+using AIChatbot.DTO;
 using AIChatbot.Utility;
 using AIData.DTO;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using Microsoft.EntityFrameworkCore;
-using AIChatbot.Services;
-using AIChatbot.DTO;
-using System.Text;
 using System.Text.Json;
+
 namespace AIChatbot.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class AiController : ControllerBase
     {
-        private readonly RagService _ragService;
         private readonly OllamaService _ollamaService;
+        private readonly RagService _ragService;
 
-        public AiController(RagService ragService, OllamaService ollamaService)
+        public AiController(OllamaService ollamaService, RagService ragService)
         {
-            _ragService = ragService;
             _ollamaService = ollamaService;
-        }
-
-        [HttpPost("ingestPdf")]
-        public async Task<IActionResult> IngestPdf([FromServices] PdfIngestor ingest, IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { error = "file is required" });
-
-            var temp = Path.GetTempFileName();
-            try
-            {
-                using (var fs = System.IO.File.Create(temp))
-                {
-                    await file.CopyToAsync(fs);
-                }
-
-                var count = await ingest.IngestPdfAsync(temp);
-                return Ok(new { insertedChunks = count });
-            }
-            catch(Exception ex)
-            {
-                return StatusCode(500, new { error = ex.InnerException.ToString() });
-            }
-            finally
-            {
-                try { System.IO.File.Delete(temp); } catch { }
-            }
+            _ragService = ragService;
         }
 
         [HttpPost("ask")]
         public async Task<IActionResult> Ask([FromBody] ChatRequest chatRequest)
         {
-            if(!chatRequest.IsRAG && !string.IsNullOrWhiteSpace(chatRequest.Prompt))
+            if (chatRequest == null || string.IsNullOrWhiteSpace(chatRequest.Prompt))
             {
-                var result = await _ollamaService.ChatAsync(chatRequest?.Prompt);
-                var res = JsonSerializer.Deserialize<ChatResponse>(result, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return BadRequest(new { error = "Prompt is required." });
+            }
 
-                // Normalize model response
-                var content = res?.Message?.Content;
-
-                if (string.IsNullOrWhiteSpace(content))
-                {
-                    // Return a JSON error body for not found
-                    return NotFound(new { error = "no content returned from model" });
-                }
-
-                // Return a consistent JSON object for non-RAG responses
+            if (chatRequest.IsRAG)
+            {
+                var ragResponse = await _ragService.AskAsync(chatRequest.Prompt);
                 return Ok(new
                 {
-                    answer = content,
-                    isRag = false,
-                    sources = Array.Empty<object>()
+                    answer = ragResponse.Answer,
+                    isRag = true,
+                    sources = ragResponse.Sources
                 });
             }
-            if (chatRequest == null || string.IsNullOrWhiteSpace(chatRequest.Prompt))
-                return BadRequest(new { error = "prompt is required" });
 
-            var ragResult = await _ragService.QueryAsync(chatRequest.Prompt, topK: 3);
-            // Return formatted JSON with answer and sources
-            return Ok(ragResult);
-        }
+            var result = await _ollamaService.ChatAsync(chatRequest.Prompt);
+            var response = JsonSerializer.Deserialize<ChatResponse>(result, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var content = response?.Message?.Content;
 
-        public async Task<List<DocumentChunk>> RetrieveRelevantChunksAsync(ChatbotDbContext context, float[] queryEmbedding, int limit = 3)
-        {
-            // Compute cosine similarity in-memory for SQL Server stored embeddings
-            var all = await context.documentchunk
-                .Select(c => new { c.id, c.content, c.embedding })
-                .ToListAsync();
-
-            float CosineSimilarity(float[] a, float[] b)
+            if (string.IsNullOrWhiteSpace(content))
             {
-                if (a == null || b == null) return 0f;
-                var len = Math.Min(a.Length, b.Length);
-                double dot = 0, na = 0, nb = 0;
-                for (int i = 0; i < len; i++)
-                {
-                    dot += a[i] * b[i];
-                    na += a[i] * a[i];
-                    nb += b[i] * b[i];
-                }
-                if (na == 0 || nb == 0) return 0f;
-                return (float)(dot / (Math.Sqrt(na) * Math.Sqrt(nb)));
+                return NotFound(new { error = "No content returned from model." });
             }
 
-            return all
-                .Select(x => new DocumentChunk { id = x.id, content = x.content, embedding = x.embedding })
-                .OrderByDescending(c => CosineSimilarity(queryEmbedding, c.embedding))
-                .Take(limit)
-                .ToList();
+            return Ok(new
+            {
+                answer = content,
+                isRag = false,
+                sources = Array.Empty<object>()
+            });
         }
 
+        [HttpPost("upload-pdf")]
+        public async Task<IActionResult> UploadPdf(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { error = "Please upload a valid PDF file." });
+            }
+
+            if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "Only PDF files are supported." });
+            }
+
+            var uploadsFolder = Path.Combine(AppContext.BaseDirectory, "RAGUploads");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var safeFileName = $"{Guid.NewGuid():N}_{file.FileName}";
+            var filePath = Path.Combine(uploadsFolder, safeFileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            try
+            {
+                var chunkCount = await _ragService.IndexPdfAsync(filePath, file.FileName);
+                return Ok(new
+                {
+                    message = "PDF uploaded and indexed successfully.",
+                    fileName = file.FileName,
+                    chunkCount,
+                    source = filePath
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+            }
+        }
     }
 }
 
