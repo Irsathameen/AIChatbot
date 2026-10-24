@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="AI.Data/AI.Data.csproj" Id="b70750a3-97b2-49ce-8bb0-545e4d578bb4" />
   <Project Path="AIChatbot/AIChatbot.csproj" />
 </Solution>

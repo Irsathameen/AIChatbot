@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace AIChatbot.DTO
 {
@@ -14,4 +15,26 @@ namespace AIChatbot.DTO
         public float Score { get; set; }
         public string Snippet { get; set; } = string.Empty;
     }
+
+
+    public class ChatResponse
+    { public Message? Message { get; set; } }
+    public class Message
+    {
+        public string? Role { get; set; }
+        public string? Content { get; set; }
+    }
+
+    public class ChatRequest
+    {
+        [Required]
+        public string Prompt { get; set; }
+
+        [Required]
+        public bool IsRAG { get; set; }
+
+    }
+
+
+
 }

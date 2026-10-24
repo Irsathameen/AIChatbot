@@ -1,7 +1,6 @@
 ﻿
 using AIChatbot.DTO;
 using AIChatbot.Utility;
-using AIData.DTO;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 

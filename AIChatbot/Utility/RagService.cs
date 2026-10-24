@@ -1,4 +1,3 @@
-using AIData.DTO;
 using AIChatbot.DTO;
 using System.Text.Json;
 
