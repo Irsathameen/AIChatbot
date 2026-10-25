@@ -1,0 +1,13 @@
+Step 1 : open x64 Native Tools Command Prompt 
+Step 2: set "PGROOT=C:\Program Files\PostgreSQL\18"
+Step 3: 
+cd %TEMP%
+git clone --branch v0.8.7 https://github.com/pgvector/pgvector.git
+cd pgvector
+nmake /F Makefile.win
+nmake /F Makefile.win install
+
+
+Step 4 :open postrgre server 
+
+CREATE EXTENSION IF NOT EXISTS vector;
