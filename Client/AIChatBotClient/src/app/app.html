@@ -39,7 +39,8 @@
     <form class="composer" (ngSubmit)="askQuestion()">
       <label class="visually-hidden" for="question">Message the AI assistant</label>
       <textarea id="question" name="question" rows="1" [(ngModel)]="question"
-        placeholder="Message the assistant..." (keydown.enter)="$event.preventDefault(); askQuestion()"></textarea>
+        placeholder="Message the assistant..." (keydown)="navigateQuestionHistory($event)"
+        (keydown.enter)="$event.preventDefault(); askQuestion()"></textarea>
       <button type="submit" [disabled]="isLoading() || !question.trim()" aria-label="Send message" title="Send message">
         <span aria-hidden="true">↑</span>
       </button>

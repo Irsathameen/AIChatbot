@@ -11,6 +11,9 @@ export class App {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
   protected readonly title = signal('AIChatBotClient');
   question: string = '';
+  private questionHistory: string[] = [];
+  private historyIndex = -1;
+  private historyDraft = '';
   isRAG = false;
   answer: any = '';
   messages = signal<{ role: 'user' | 'bot'; content: string }[]>([]);
@@ -37,10 +40,45 @@ export class App {
     });
   }
 
+  navigateQuestionHistory(event: KeyboardEvent): void {
+    if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown') || this.questionHistory.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (this.historyIndex === -1) {
+        this.historyDraft = this.question;
+        this.historyIndex = this.questionHistory.length;
+      }
+      this.historyIndex = Math.max(0, this.historyIndex - 1);
+      this.question = this.questionHistory[this.historyIndex];
+      return;
+    }
+
+    if (this.historyIndex === -1) {
+      return;
+    }
+
+    event.preventDefault();
+    this.historyIndex++;
+    if (this.historyIndex >= this.questionHistory.length) {
+      this.historyIndex = -1;
+      this.question = this.historyDraft;
+      this.historyDraft = '';
+      return;
+    }
+
+    this.question = this.questionHistory[this.historyIndex];
+  }
+
   askQuestion() {
     const prompt = this.question.trim();
     if (!prompt || this.isLoading()) return;
 
+    this.questionHistory.push(prompt);
+    this.historyIndex = -1;
+    this.historyDraft = '';
     this.messages.update(messages => [...messages, { role: 'user', content: prompt }]);
     this.scrollMessagesToBottom();
     this.question = '';
