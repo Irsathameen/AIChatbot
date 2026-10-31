@@ -1,55 +1,204 @@
-<main class="chat-shell">
-  <section class="chat-window" aria-label="AI chat">
-    <header class="chat-header">
-      <div class="brand-mark" aria-hidden="true">✦</div>
-      <div>
-        <p class="eyebrow">AI assistant</p>
-        <h1>Conversation space</h1>
-      </div>
-      <span class="status"><span class="status-dot"></span>Online</span>
-    </header>
+@if (checkingSession()) {
+  <main class="session-loading" aria-label="Loading your session">
+    <span class="loading-orbit"></span>
+    <p>Getting your workspace ready</p>
+  </main>
+} @else if (!user()) {
+  <main class="auth-shell">
+    <section class="auth-story" aria-label="About Alshifa AI">
+      <a class="auth-brand" href="/" aria-label="Alshifa AI home">
+        <span class="brand-symbol" aria-hidden="true">🤖</span>
+        <span>alshifa<span class="brand-light">.ai</span></span>
+      </a>
 
-    <div #messageList class="message-list" aria-live="polite">
-      @if (messages().length === 0) {
-        <div class="welcome-message">
-          <div class="welcome-icon" aria-hidden="true">✦</div>
-          <h2>How can I help you today?</h2>
-          <p>Ask a question and your conversation will appear here.</p>
-        </div>
-      }
+      <div class="story-content">
+        <p class="story-kicker"><span class="sparkle" aria-hidden="true">✦</span> YOUR THOUGHT PARTNER</p>
+        <h1>Big ideas start<br>with a <span>better question.</span></h1>
+        <p class="story-copy">Meet your AI workspace for thinking clearly, finding answers, and making your next idea happen.</p>
 
-      @for (message of messages(); track $index) {
-        <article class="message" [class.user-message]="message.role === 'user'" [class.bot-message]="message.role === 'bot'">
-          <div class="avatar" aria-hidden="true">{{ message.role === 'user' ? 'You' : 'AI' }}</div>
-          <div class="message-content">
-            <span class="message-label">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
-            <p [innerHTML]="formatMarkdown(message.content)"></p>
+        <div class="ai-preview robot-stage" aria-hidden="true">
+          <div class="robot-orbit orbit-outer"></div>
+          <div class="robot-orbit orbit-inner"></div>
+          <div class="robot-shadow"></div>
+          <div class="robot-model">
+            <div class="robot-antenna"><span></span></div>
+            <div class="robot-head">
+              <span class="robot-ear robot-ear-left"></span>
+              <span class="robot-ear robot-ear-right"></span>
+              <div class="robot-face">
+                <i></i><i></i>
+                <span class="robot-smile"></span>
+              </div>
+            </div>
+            <div class="robot-neck"></div>
+            <div class="robot-body">
+              <span class="robot-emblem">✦</span>
+              <span class="robot-chest-line"></span>
+              <span class="robot-chest-dot"></span>
+            </div>
+            <span class="robot-arm robot-arm-left"></span>
+            <span class="robot-arm robot-arm-right"></span>
+            <div class="robot-base"></div>
           </div>
-        </article>
-      }
+          <div class="robot-label"><span></span> Alshifa assistant <small>ready to help</small></div>
+          <span class="robot-sparkle sparkle-top">✦</span>
+          <span class="robot-sparkle sparkle-side">✧</span>
+        </div>
+      </div>
 
-      @if (isLoading()) {
-        <article class="message bot-message">
-          <div class="avatar" aria-hidden="true">AI</div>
-          <div class="message-content typing" aria-label="Assistant is thinking"><span></span><span></span><span></span></div>
-        </article>
-      }
-    </div>
+      <div class="story-footer">
+        <span>Thoughtful answers. A little more clarity.</span>
+        <span class="footer-sparkle">✦</span>
+      </div>
+    </section>
 
-    <form class="composer" (ngSubmit)="askQuestion()">
-      <label class="visually-hidden" for="question">Message the AI assistant</label>
-      <textarea id="question" name="question" rows="1" [(ngModel)]="question"
-        placeholder="Message the assistant..." (keydown)="navigateQuestionHistory($event)"
-        (keydown.enter)="$event.preventDefault(); askQuestion()"></textarea>
-      <button type="submit" [disabled]="isLoading() || !question.trim()" aria-label="Send message" title="Send message">
-        <span aria-hidden="true">↑</span>
-      </button>
-    </form>
-    <label class="search-toggle">
-      <input type="checkbox" name="isRAG" [(ngModel)]="isRAG">
-      <span class="checkbox-mark" aria-hidden="true"></span>
-      <span>Include internal search (RAG)</span>
-    </label>
-    <p class="composer-note">Coded by Alshifa</p>
-  </section>
-</main>
+    <section class="auth-panel" aria-labelledby="auth-heading">
+      <div class="auth-card">
+        <div class="mobile-brand">
+          <span class="brand-symbol" aria-hidden="true">🤖</span>
+          <span>alshifa<span class="brand-light">.ai</span></span>
+        </div>
+        <div class="auth-heading">
+          <p class="auth-eyebrow">{{ authMode() === 'login' ? 'WELCOME BACK' : 'A FRESH START' }}</p>
+          <h2 id="auth-heading">{{ authMode() === 'login' ? 'Good to see you.' : 'Create your account.' }}</h2>
+          <p>{{ authMode() === 'login' ? 'Sign in to pick up where your ideas left off.' : 'Your AI workspace is just a few details away.' }}</p>
+        </div>
+
+        <form class="auth-form" (ngSubmit)="submitAuth()" #authForm="ngForm">
+          <label for="email">Email address</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">✉</span>
+            <input id="email" name="email" type="email" [(ngModel)]="loginEmail"
+              placeholder="you@example.com" autocomplete="email" required email maxlength="320">
+          </div>
+
+          <div class="password-label">
+            <label for="password">Password</label>
+            @if (authMode() === 'login') {
+              <span class="password-hint">At least 8 characters</span>
+            }
+          </div>
+          <div class="input-wrap">
+            <span class="input-icon lock-icon" aria-hidden="true">⌑</span>
+            <input id="password" name="password" type="password" [(ngModel)]="loginPassword"
+              [placeholder]="authMode() === 'register' ? 'Create a secure password' : 'Enter your password'"
+              [autocomplete]="authMode() === 'register' ? 'new-password' : 'current-password'"
+              required minlength="8" maxlength="128">
+          </div>
+
+          @if (authError()) {
+            <p class="auth-error" role="alert">{{ authError() }}</p>
+          }
+
+          <button class="auth-submit" type="submit" [disabled]="authBusy() || authForm.invalid">
+            @if (authBusy()) {
+              <span class="button-spinner" aria-hidden="true"></span>
+              {{ authMode() === 'login' ? 'Signing in...' : 'Creating account...' }}
+            } @else {
+              {{ authMode() === 'login' ? 'Sign in' : 'Create account' }}
+              <span aria-hidden="true">↗</span>
+            }
+          </button>
+        </form>
+
+        <div class="auth-divider"><span>OR</span></div>
+        <p class="auth-switch">
+          {{ authMode() === 'login' ? 'New to Alshifa?' : 'Already have an account?' }}
+          <button type="button" (click)="switchAuthMode(authMode() === 'login' ? 'register' : 'login')">
+            {{ authMode() === 'login' ? 'Create an account' : 'Sign in' }}
+          </button>
+        </p>
+        <p class="auth-privacy"><span aria-hidden="true">✦</span> Your conversations are yours. Always.</p>
+      </div>
+      <p class="copyright">© 2026 Alshifa AI <span>·</span> Made for curious minds</p>
+    </section>
+  </main>
+} @else {
+  <main class="chat-shell">
+    <section class="chat-window" aria-label="AI chat">
+      <header class="chat-header">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <p class="eyebrow">AI assistant</p>
+          <h1>Conversation space</h1>
+        </div>
+        <span class="status"><span class="status-dot"></span>Online</span>
+        <button class="sign-out" type="button" (click)="logout()" aria-label="Sign out">Sign out</button>
+      </header>
+
+      <section class="pdf-library" aria-labelledby="pdf-library-title">
+        <div class="pdf-library-heading">
+          <div class="pdf-library-icon" aria-hidden="true">↥</div>
+          <div>
+            <h2 id="pdf-library-title">Your knowledge base</h2>
+            <p>Upload a PDF and ask questions about it</p>
+          </div>
+          <label class="upload-button" [class.upload-disabled]="uploadingPdf()">
+            {{ uploadingPdf() ? 'Indexing...' : 'Choose PDF' }}
+            <input type="file" accept=".pdf,application/pdf" [disabled]="uploadingPdf()"
+              (change)="onPdfSelected($event)" aria-label="Choose a PDF to upload">
+          </label>
+        </div>
+        <div class="pdf-dropzone" [class.dragging]="isPdfDragging()"
+          (dragover)="onPdfDragOver($event)" (dragleave)="onPdfDragLeave($event)" (drop)="onPdfDrop($event)">
+          <span class="pdf-drop-icon" aria-hidden="true">PDF</span>
+          <p>Drop a PDF here <span>or use “Choose PDF”</span></p>
+          <small>Private to your account · Up to 25 MB</small>
+        </div>
+        @if (uploadingPdf()) {
+          <p class="upload-feedback" role="status"><span class="upload-spinner"></span> Reading and indexing your PDF…</p>
+        } @else if (uploadResult(); as result) {
+          <p class="upload-feedback upload-success" role="status">
+            <span aria-hidden="true">✓</span> {{ result.fileName }} · {{ result.chunkCount }} sections indexed
+          </p>
+        }
+        @if (uploadError()) {
+          <p class="upload-feedback upload-failure" role="alert">{{ uploadError() }}</p>
+        }
+      </section>
+
+      <div #messageList class="message-list" aria-live="polite">
+        @if (messages().length === 0) {
+          <div class="welcome-message">
+            <div class="welcome-icon" aria-hidden="true">✦</div>
+            <h2>How can I help you today?</h2>
+            <p>Ask a question and your conversation will appear here.</p>
+          </div>
+        }
+
+        @for (message of messages(); track $index) {
+          <article class="message" [class.user-message]="message.role === 'user'" [class.bot-message]="message.role === 'bot'">
+            <div class="avatar" aria-hidden="true">{{ message.role === 'user' ? 'You' : 'AI' }}</div>
+            <div class="message-content">
+              <span class="message-label">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
+              <p [innerHTML]="formatMarkdown(message.content)"></p>
+            </div>
+          </article>
+        }
+
+        @if (isLoading()) {
+          <article class="message bot-message">
+            <div class="avatar" aria-hidden="true">AI</div>
+            <div class="message-content typing" aria-label="Assistant is thinking"><span></span><span></span><span></span></div>
+          </article>
+        }
+      </div>
+
+      <form class="composer" (ngSubmit)="askQuestion()">
+        <label class="visually-hidden" for="question">Message the AI assistant</label>
+        <textarea id="question" name="question" rows="1" [(ngModel)]="question"
+          placeholder="Message the assistant..." (keydown)="navigateQuestionHistory($event)"
+          (keydown.enter)="$event.preventDefault(); askQuestion()"></textarea>
+        <button type="submit" [disabled]="isLoading() || !question.trim()" aria-label="Send message" title="Send message">
+          <span aria-hidden="true">↑</span>
+        </button>
+      </form>
+      <label class="search-toggle">
+        <input type="checkbox" name="isRAG" [(ngModel)]="isRAG">
+        <span class="checkbox-mark" aria-hidden="true"></span>
+        <span>Search my uploaded PDFs <small>RAG</small></span>
+      </label>
+      <p class="composer-note">Coded by Alshifa</p>
+    </section>
+  </main>
+}

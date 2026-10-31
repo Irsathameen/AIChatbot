@@ -14,15 +14,15 @@ namespace AIChatbot.Utility
             _ollamaService = ollamaService;
         }
 
-        public async Task<int> IndexPdfAsync(string filePath, string fileName)
+        public async Task<int> IndexPdfAsync(Guid userId, string filePath, string fileName)
         {
             var pdfText = await PdfTextExtractor.ExtractTextFromFileAsync(filePath);
-            return await _repository.SavePdfChunksAsync(fileName, pdfText);
+            return await _repository.SavePdfChunksAsync(userId, fileName, pdfText);
         }
 
-        public async Task<RagResponse> AskAsync(string question)
+        public async Task<RagResponse> AskAsync(Guid userId, string question)
         {
-            var matches = await _repository.SearchAsync(question, 5);
+            var matches = await _repository.SearchAsync(userId, question, 5);
             var context = string.Join("\n\n---\n\n", matches.Select(m => m.Content));
 
             var prompt = $@"

@@ -18,7 +18,7 @@ namespace AIChatbot.Utility
             _embeddingDimension = int.TryParse(configuration["Ollama:EmbeddingDimensions"], out var value) ? value : 1536;
         }
 
-        public async Task<int> SavePdfChunksAsync(string pdfFileName, string pdfText)
+        public async Task<int> SavePdfChunksAsync(Guid userId, string pdfFileName, string pdfText)
         {
             var chunks = SplitTextIntoChunks(pdfText, 800, 120);
             var savedCount = 0;
@@ -35,7 +35,7 @@ namespace AIChatbot.Utility
                 {
                     sourceFile = pdfFileName,
                     chunkSize = chunk.Length
-                }, embedding);
+                }, embedding, userId);
 
                 savedCount++;
             }
@@ -43,7 +43,7 @@ namespace AIChatbot.Utility
             return savedCount;
         }
 
-        public async Task SaveChunkAsync(string content, object metadata, float[] embedding)
+        public async Task SaveChunkAsync(string content, object metadata, float[] embedding, Guid userId)
         {
             if (embedding.Length != _embeddingDimension)
             {
@@ -57,8 +57,8 @@ namespace AIChatbot.Utility
             await connection.OpenAsync();
 
             var sql = @"
-                INSERT INTO public.documentchunks (id, content, metadata, embedding)
-                VALUES (@id, @content, @metadata::jsonb, @embedding::vector)
+                INSERT INTO public.documentchunks (id, content, metadata, embedding, owner_id)
+                VALUES (@id, @content, @metadata::jsonb, @embedding::vector, @ownerId)
             ";
 
             await using var command = new NpgsqlCommand(sql, connection);
@@ -66,11 +66,12 @@ namespace AIChatbot.Utility
             command.Parameters.AddWithValue("content", content);
             command.Parameters.AddWithValue("metadata", metadataJson);
             command.Parameters.AddWithValue("embedding", vectorValue);
+            command.Parameters.AddWithValue("ownerId", userId);
 
             await command.ExecuteNonQueryAsync();
         }
 
-        public async Task<List<DocumentChunkMatch>> SearchAsync(string query, int limit = 5)
+        public async Task<List<DocumentChunkMatch>> SearchAsync(Guid userId, string query, int limit = 5)
         {
             var queryEmbedding = await _ollamaEmbeddingService.GetEmbeddingAsync(query);
             var vectorValue = ToVectorString(queryEmbedding);
@@ -81,12 +82,14 @@ namespace AIChatbot.Utility
             var sql = @"
                 SELECT id, content, metadata, 1 - (embedding <=> @queryEmbedding::vector) AS similarity
                 FROM public.documentchunks
+                WHERE owner_id = @ownerId
                 ORDER BY embedding <=> @queryEmbedding::vector
                 LIMIT @limit
             ";
 
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue("queryEmbedding", vectorValue);
+            command.Parameters.AddWithValue("ownerId", userId);
             command.Parameters.AddWithValue("limit", limit);
 
             var results = new List<DocumentChunkMatch>();

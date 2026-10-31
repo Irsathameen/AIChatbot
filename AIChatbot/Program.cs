@@ -1,9 +1,26 @@
 
 using AIChatbot.Utility;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("JWT signing key 'Jwt:Key' is not configured.");
+var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtKey);
+if (jwtKeyBytes.Length < 32)
+{
+    throw new InvalidOperationException("JWT signing key 'Jwt:Key' must be at least 32 bytes long.");
+}
+
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("JWT issuer 'Jwt:Issuer' is not configured.");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("JWT audience 'Jwt:Audience' is not configured.");
+var signingKey = new SymmetricSecurityKey(jwtKeyBytes);
 
 builder.Services.AddCors(options =>
 {
@@ -15,10 +32,30 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+
 builder.Services.AddHttpClient<OllamaService>();
 builder.Services.AddHttpClient<OllamaEmbeddingService>();
 builder.Services.AddScoped<DocumentChunkRepository>();
 builder.Services.AddScoped<RagService>();
+builder.Services.AddScoped<AuthRepository>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
+builder.Services.AddSingleton(new JwtTokenService(signingKey, jwtIssuer, jwtAudience));
 
 builder.Services.AddOpenApi();
 
@@ -45,6 +82,7 @@ app.UseHttpsRedirection();
 // Enable CORS for the configured policy
 app.UseCors("LocalAngularDev");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

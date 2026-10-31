@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.documentchunks
     content text NOT NULL,
     metadata jsonb,
     embedding vector(768),
+    owner_id uuid NOT NULL,
     CONSTRAINT documentchunks_pkey PRIMARY KEY (id)
 );
 
@@ -56,15 +57,33 @@ ON public.documentchunks
 USING hnsw (embedding vector_cosine_ops);
 ----------------------------
 
+For an existing database, add the ownership column before starting the updated API:
+
+```sql
+ALTER TABLE public.documentchunks
+ADD COLUMN IF NOT EXISTS owner_id uuid;
+
+CREATE INDEX IF NOT EXISTS documentchunks_owner_id_idx
+ON public.documentchunks (owner_id);
+```
+
+Previously indexed chunks have no owner and are intentionally excluded from user searches. Upload the PDFs again after applying this change to make them available to their account.
+
 
 Project Flow
-1.	Upload a PDF file
+1.	Upload a PDF file while signed in (indexed chunks are private to that account)
 2.	Extract text from the PDF
 3.	Split text into chunks
 4.	Generate embeddings using nomic-embed-text
 5.	Store chunks + embeddings in PostgreSQL
-6.	User asks a question
+6.	The signed-in user asks a question
 7.	Generate embedding for the question
-8.	Search top matching chunks using vector similarity
+8.	Search only that user's matching chunks using vector similarity
 9.	Pass retrieved context to gpt-oss:120b
 10.	Return answer with source snippets
+
+## AI workspace accounts
+
+The client includes email/password registration and sign-in. On the first authentication request, the API creates `public.users` in the configured PostgreSQL database if it does not already exist. Passwords are stored as ASP.NET Identity password hashes. Successful registration and sign-in return a one-hour JWT; the Angular client stores it for the current browser tab and sends it as a bearer token. AI endpoints require a valid token. Signing out clears the stored token and returns to the sign-in screen.
+
+Set `ConnectionStrings:DefaultConnection` to a PostgreSQL database the application can access. Configure a random signing secret of at least 32 bytes as the `Jwt__Key` environment variable before starting the API (for PowerShell, for example: `$env:Jwt__Key = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))`). Do not commit the signing secret. Then run the API and Angular client (`http://localhost:4200`). Registration and login are available from the client. When upgrading an existing database, apply the ownership-column migration above so uploaded PDF chunks are isolated per account.
